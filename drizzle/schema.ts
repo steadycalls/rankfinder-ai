@@ -28,4 +28,38 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+/**
+ * Credits table to track user report credits
+ */
+export const credits = mysqlTable("credits", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  credits: int("credits").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Credit = typeof credits.$inferSelect;
+export type InsertCredit = typeof credits.$inferInsert;
+
+/**
+ * Reports table to store generated niche reports
+ */
+export const reports = mysqlTable("reports", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  niche: varchar("niche", { length: 255 }).notNull(),
+  location: varchar("location", { length: 255 }).notNull(),
+  opportunityScore: int("opportunityScore").notNull(),
+  searchVolume: int("searchVolume").notNull(),
+  avgCpc: int("avgCpc").notNull(), // in cents
+  competitionLevel: varchar("competitionLevel", { length: 50 }).notNull(),
+  keywords: text("keywords").notNull(), // JSON array
+  competitors: text("competitors").notNull(), // JSON array
+  domains: text("domains").notNull(), // JSON array
+  revenueProjection: int("revenueProjection").notNull(), // monthly in cents
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Report = typeof reports.$inferSelect;
+export type InsertReport = typeof reports.$inferInsert;

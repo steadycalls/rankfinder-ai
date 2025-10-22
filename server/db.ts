@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, credits, reports, InsertReport } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,81 @@ export async function getUser(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Credits management
+export async function getUserCredits(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(credits).where(eq(credits.userId, userId)).limit(1);
+  return result.length > 0 ? result[0] : null;
+}
+
+export async function initializeUserCredits(userId: number, initialCredits: number = 0) {
+  const db = await getDb();
+  if (!db) return;
+  
+  await db.insert(credits).values({
+    userId,
+    credits: initialCredits,
+  }).onDuplicateKeyUpdate({
+    set: { credits: initialCredits },
+  });
+}
+
+export async function deductCredit(userId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  
+  const userCredits = await getUserCredits(userId);
+  if (!userCredits || userCredits.credits <= 0) return false;
+  
+  await db.update(credits)
+    .set({ credits: userCredits.credits - 1 })
+    .where(eq(credits.userId, userId));
+  
+  return true;
+}
+
+export async function addCredits(userId: number, amount: number) {
+  const db = await getDb();
+  if (!db) return;
+  
+  const userCredits = await getUserCredits(userId);
+  if (!userCredits) {
+    await initializeUserCredits(userId, amount);
+  } else {
+    await db.update(credits)
+      .set({ credits: userCredits.credits + amount })
+      .where(eq(credits.userId, userId));
+  }
+}
+
+// Reports management
+export async function createReport(report: InsertReport) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.insert(reports).values(report);
+  return result;
+}
+
+export async function getUserReports(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(reports).where(eq(reports.userId, userId)).orderBy(reports.createdAt);
+}
+
+export async function getReportById(reportId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(reports)
+    .where(eq(reports.id, reportId))
+    .limit(1);
+  
+  if (result.length === 0) return null;
+  if (result[0].userId !== userId) return null;
+  
+  return result[0];
+}
